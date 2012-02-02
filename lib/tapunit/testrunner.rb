@@ -1,19 +1,13 @@
-#--
-#
-# Author:: Nathaniel Talbott.
-# Copyright::
-#   * Copyright (c) 2000-2003 Nathaniel Talbott. All rights reserved.
-#   * Copyright (c) 2008-2011 Kouhei Sutou <kou@clear-code.com>
-# License:: Ruby license.
-
 #require 'test/unit/color-scheme'
 require 'test/unit/ui/testrunner'
 require 'test/unit/ui/testrunnermediator'
 #require 'test/unit/ui/console/outputlevel'
+require 'tapunit/ignore_callers'
+require 'stringio'
 
 module TapUnit
 
-  # Runs a Test::Unit::TestSuite on the console.
+  #
   class TestRunner < Test::Unit::UI::TestRunner
 
     # Creates a new TestRunner for running the passed
@@ -29,6 +23,7 @@ module TapUnit
 
       @level = 0
 
+      @_source_cache = {}
       @already_outputted = false
       @top_level = true
 
@@ -36,20 +31,18 @@ module TapUnit
     end
 
     private
-    def change_output_level(level)
-      old_output_level = @current_output_level
-      @current_output_level = level
-      yield
-      @current_output_level = old_output_level
-    end
+    #def change_output_level(level)
+    #  old_output_level = @current_output_level
+    #  @current_output_level = level
+    #  yield
+    #  @current_output_level = old_output_level
+    #end
 
     def setup_mediator
       super
 
       suite_name = @suite.to_s
       suite_name = @suite.name if @suite.kind_of?(Module)
-
-
     end
 
     #def attach_to_mediator
@@ -63,19 +56,20 @@ module TapUnit
     #end
 
     def attach_to_mediator
-      @mediator.add_listener(TestResult::FAULT,            &method(:tapout_fault))
-      @mediator.add_listener(TestRunnerMediator::STARTED,  &method(:tapout_before_suite))
-      @mediator.add_listener(TestRunnerMediator::FINISHED, &method(:tapout_after_suite))
-      @mediator.add_listener(TestCase::STARTED_OBJECT,     &method(:tapout_before_test))
-      @mediator.add_listener(TestCase::FINISHED_OBJECT,    &method(:tapout_pass))
-      @mediator.add_listener(TestSuite::STARTED_OBJECT,    &method(:tapout_before_case))
-      @mediator.add_listener(TestSuite::FINISHED_OBJECT,   &method(:tapout_after_case))
+      @mediator.add_listener(Test::Unit::TestResult::FAULT,                &method(:tapout_fault))
+      @mediator.add_listener(Test::Unit::UI::TestRunnerMediator::STARTED,  &method(:tapout_before_suite))
+      @mediator.add_listener(Test::Unit::UI::TestRunnerMediator::FINISHED, &method(:tapout_after_suite))
+      @mediator.add_listener(Test::Unit::TestCase::STARTED_OBJECT,         &method(:tapout_before_test))
+      @mediator.add_listener(Test::Unit::TestCase::FINISHED_OBJECT,        &method(:tapout_pass))
+      @mediator.add_listener(Test::Unit::TestSuite::STARTED_OBJECT,        &method(:tapout_before_case))
+      @mediator.add_listener(Test::Unit::TestSuite::FINISHED_OBJECT,       &method(:tapout_after_case))
     end
 
 
     # TAP-Y/J Revision
     REVISION = 4
 
+=begin
     def test_suite_started(suite)
       #if @top_level
       #  @top_level = false
@@ -96,6 +90,7 @@ module TapUnit
     def test_suite_finished(suite)
       @level -= 1
     end
+=end
 
     #
     # Before everything else.
@@ -107,8 +102,8 @@ module TapUnit
       doc = {
         'type'  => 'suite',
         'start' => @suite_start.strftime('%Y-%m-%d %H:%M:%S'),
-        'count' => self.test_count,
-        'seed'  => self.options[:seed],
+        'count' => @suite.size,
+        #'seed'  => #@suite.seed,  # no seed?
         'rev'   => REVISION
       }
       return doc
@@ -142,9 +137,11 @@ module TapUnit
     #
     #
     def tapout_before_case(testcase)
+      return nil if testcase.test_case.nil? 
+
       doc = {
         'type'    => 'case',
-        'subtype' => testcase.test_case.nil? ? 'suite' : nil
+        #'subtype' => '',
         'label'   => testcase.name,
         'level'   => @level
       }
@@ -166,12 +163,13 @@ module TapUnit
       @test_start = Time.now
     end
 
+    #
     def tapout_fault(fault)
       case fault
       when Test::Unit::Pending
         tapout_todo(fault)
       when Test::Unit::Omission
-        tapout_skip(fault)
+        tapout_omit(fault)
       when Test::Unit::Notification
         tapout_note(fault)
       when Test::Unit::Failure
@@ -180,11 +178,25 @@ module TapUnit
         tapout_error(fault)
       end
 
-      #@already_outputted = true if fault.critical?
+      @already_outputted = true #if fault.critical?
+    end
+
+    #
+    def tapout_note(note)
+      doc = {
+        'type' => 'note',
+        'text' => note.message
+      }
+      return doc
     end
 
     #
     def tapout_pass(test)
+      if @already_outputted
+        @already_outputted = false
+        return nil
+      end
+
       @counts[:total] += 1
       @counts[:pass]  += 1
 
@@ -192,10 +204,10 @@ module TapUnit
 
       doc = {
         'type'        => 'test',
-        'subtype'     => '',
+        #'subtype'     => '',
         'status'      => 'pass',
         #'setup': foo instance
-        'label'       => name
+        'label'       => name,
         #'expected' => 2
         #'returned' => 2
         #'file'     => test_file
@@ -206,12 +218,12 @@ module TapUnit
         #  file: lib/foo.rb
         #  line: 11..13
         #  code: Foo#*
-        'time' => Time.now - @suite_start_time
+        'time' => Time.now - @suite_start
       }
 
-      stdout, stderr = test_runner.stdout, test_runner.stderr
-      doc['stdout'] = stdout unless stdout.empty?
-      doc['stderr'] = stderr unless stderr.empty?
+      #stdout, stderr = test_runner.stdout, test_runner.stderr
+      #doc['stdout'] = stdout unless stdout.empty?
+      #doc['stderr'] = stderr unless stderr.empty?
 
       return doc
     end
@@ -226,7 +238,7 @@ module TapUnit
 
       doc = {
         'type'        => 'test',
-        'subtype'     => '',
+        #'subtype'     => '',
         'status'      => 'todo',
         'label'       => fault.test_name,
         #'setup' => "foo instance",
@@ -255,7 +267,7 @@ module TapUnit
     end
 
     #
-    def tapout_skip(fault)
+    def tapout_omit(fault)
       @counts[:total] += 1
       @counts[:omit]  += 1
 
@@ -264,7 +276,7 @@ module TapUnit
 
       doc = {
         'type'        => 'test',
-        'subtype'     => '',
+        #'subtype'     => '',
         'status'      => 'skip',
         'label'       => fault.test_name,
         #'setup' => "foo instance",
@@ -293,16 +305,16 @@ module TapUnit
     end
 
     #
-    def tapout_failure(fault)
+    def tapout_fail(fault)
       @counts[:total] += 1
       @counts[:fail]  += 1
 
       file, line = location(fault.location)
-      rel_file = e_file.sub(Dir.pwd+'/', '')
+      rel_file = file.sub(Dir.pwd+'/', '')
 
       doc = {
         'type'        => 'test',
-        'subtype'     => '',
+        #'subtype'     => '',
         'status'      => 'fail',
         'label'       => fault.test_name,
         #'setup' => "foo instance",
@@ -320,8 +332,8 @@ module TapUnit
         #  'line' => 11..13
         #  'code' => Foo#*
         'exception' => {
-          'message'   => clean_message(e.message),
-          'class'     => e.class.name,
+          'message'   => clean_message(fault.user_message || fault.message),
+          'class'     => fault.class.name,
           'file'      => rel_file,
           'line'      => line,
           'source'    => source(file)[line-1].strip,
@@ -345,16 +357,16 @@ module TapUnit
       @counts[:error] += 1
 
       file, line = location(fault.location)
-      rel_file = e_file.sub(Dir.pwd+'/', '')
+      rel_file = file.sub(Dir.pwd+'/', '')
 
       doc = {
         'type'        => 'test',
-        'subtype'     => '',
+        #'subtype'     => '',
         'status'      => 'error',
         'label'       => fault.test_name,
         #'setup' => "foo instance",
-        'expected'    => fault.inspected_expected,
-        'returned'    => fault.inspected_actual,
+        #'expected'    => fault.inspected_expected,
+        #'returned'    => fault.inspected_actual,
         #'file' => test_file
         #'line' => test_line
         #'source' => ok 1, 2
@@ -367,13 +379,13 @@ module TapUnit
         #  'line' => 11..13
         #  'code' => Foo#*
         'exception' => {
-          'message'   => fault.message,   # user_message ?
+          'message'   => clean_message(fault.message),
           'class'     => fault.class.name,
           'file'      => rel_file,
           'line'      => line,
           'source'    => source(file)[line-1].strip,
           'snippet'   => code_snippet(file, line),
-          'backtrace' => filter_backtrace(failt.location)
+          'backtrace' => filter_backtrace(fault.location)
         },
         'time' => Time.now - @suite_start
       }
@@ -450,15 +462,16 @@ module TapUnit
 
     # Clean the backtrace of any reference to test framework itself.
     def filter_backtrace(backtrace)
-      ## remove backtraces that match any pattern in IGNORE_CALLERS
-      trace = backtrace.reject{|b| IGNORE_CALLERS.any?{|i| i=~b}}
+      ## remove backtraces that match any pattern in $RUBY_IGNORE_CALLERS
+      trace = backtrace.reject{|b| $RUBY_IGNORE_CALLERS.any?{|i| i=~b}}
       ## remove `:in ...` portion of backtraces
       trace = trace.map do |bt| 
         i = bt.index(':in')
         i ? bt[0...i] :  bt
       end
+# TODO: does TestUnit have a filter ?
       ## now apply MiniTest's own filter (note: doesn't work if done first, why?)
-      trace = MiniTest::filter_backtrace(trace)
+      #trace = MiniTest::filter_backtrace(trace)
       ## if the backtrace is empty now then revert to the original
       trace = backtrace if trace.empty?
       ## simplify paths to be relative to current workding diectory
@@ -518,10 +531,11 @@ module TapUnit
 
     #
     def clean_message(message)
-      message.strip #.gsub(/\s*\n\s*/, "\n")
+      message.strip.gsub(/\n+/, "\n")
     end
 
-    def puts(string)
+    #
+    def puts(string="\n")
       @output.write(string)
       @output.flush      
     end
@@ -530,62 +544,91 @@ module TapUnit
 
   #
   class TapY < TestRunner
-    def initialize
+    def initialize(suite, options={})
       require 'yaml' unless respond_to?(:to_yaml)
-      super
-    end
-    def tapout_before_suites(suites, type)
-      puts super(suites, type).to_yaml
+      super(suite, options)
     end
     def tapout_before_suite(suite)
       puts super(suite).to_yaml
     end
-    def tapout_pass(suite, test, test_runner)
-      puts super(suite, test, test_runner).to_yaml
+    def tapout_before_case(testcase)
+      doc = super(testcase)
+      puts doc.to_yaml if doc
     end
-    def tapout_skip(suite, test, test_runner)
-      puts super(suite, test, test_runner).to_yaml
+    def tapout_note(note)
+      doc = super(note)
+      puts doc.to_yaml if doc
     end
-    def tapout_failure(suite, test, test_runner)
-      puts super(suite, test, test_runner).to_yaml
+    def tapout_pass(test)
+      doc = super(test)
+      puts doc.to_yaml if doc
     end
-    def tapout_error(suite, test, test_runner)
-      puts super(suite, test, test_runner).to_yaml
+    def tapout_fail(test)
+      doc = super(test)
+      puts doc.to_yaml if doc
     end
-    def tapout_after_suites(suites, type)
-      puts super(suites, type).to_yaml
+    def tapout_omit(test)
+      doc = super(test)
+      puts doc.to_yaml if doc
+    end
+    def tapout_todo(test)
+      doc = super(test)
+      puts doc.to_yaml if doc
+    end
+    def tapout_error(test)
+      doc = super(test)
+      puts doc.to_yaml if doc
+    end
+    def tapout_after_suite(time)
+      doc = super(time)
+      puts doc.to_yaml if doc
       puts "..."
+      puts
     end
   end
 
   #
   class TapJ < TestRunner
-    def initialize
+    def initialize(suite, options={})
       require 'json' unless respond_to?(:to_json)
-      super
-    end
-    def tapout_before_suites(suites, type)
-      puts super(suites, type).to_json
+      super(suite, options)
     end
     def tapout_before_suite(suite)
       puts super(suite).to_json
     end
-    def tapout_pass(suite, test, test_runner)
-      puts super(suite, test, test_runner).to_json
+    def tapout_before_case(testcase)
+      doc = super(testcase)
+      puts doc.to_json if doc
     end
-    def tapout_skip(suite, test, test_runner)
-      puts super(suite, test, test_runner).to_json
+    def tapout_note(note)
+      doc = super(note)
+      puts doc.to_json if doc
     end
-    def tapout_failure(suite, test, test_runner)
-      puts super(suite, test, test_runner).to_json
+    def tapout_pass(test)
+      doc = super(test)
+      puts doc.to_json if doc
     end
-    def tapout_error(suite, test, test_runner)
-      puts super(suite, test, test_runner).to_json
+    def tapout_fail(test)
+      doc = super(test)
+      puts doc.to_json if doc
     end
-    def tapout_after_suites(suites, type)
-      puts super(suites, type).to_json
+    def tapout_omit(test)
+      doc = super(test)
+      puts doc.to_json if doc
+    end
+    def tapout_todo(test)
+      doc = super(test)
+      puts doc.to_json if doc
+    end
+    def tapout_error(test)
+      doc = super(test)
+      puts doc.to_json if doc
+    end
+    def tapout_after_suite(time)
+      doc = super(time)
+      puts doc.to_json if doc
+      puts
     end
   end
 
 end
-

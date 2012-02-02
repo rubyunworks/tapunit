@@ -8,4 +8,5 @@ require 'test/unit'
 require 'tapunit/tapy'
 require 'tapunit/tapj'
 
-Test::Unit.run = false
+#Test::Unit.run = false
+
