@@ -1,0 +1,2 @@
+TapUnit provides a TAP-Y/J report format for Test::Unit 2.x suitable for use
+with TAP-Y/J consumers like TAPOUT.

@@ -1,0 +1,54 @@
+= TapUnit
+
+{Website}[http://rubyworks.github.com/tapunit] |
+{Documentation}[http://rubydoc.info/gems/tapunit/frames] |
+{Development}[http://github.com/rubyworks/tapunit]
+
+{<img src="http://travis-ci.org/rubyworks/tapunit.png" />}[http://travis-ci.org/rubyworks/tapunit]
+
+
+== Description
+
+The TapUnit project provides a TAP-Y and TAP-J output reporters for the
+Test::Unit 2.x test framework.
+
+See {TAPOUT}[http://rubyworks.github.com/tapout] for more information about
+TAP-Y/J formats.
+
+
+== Usage
+
+Test::Unit supports custom report formats by setting `Test::Unit::AutorRunner.default_runner`
+to the registered name for a runner class. In this case we want to set it to either
+'tapy' or 'tapj'. So in your project's test helper script add, e.g.
+
+  require 'tapunit/autorun'
+  Test::Unit::AutorRunner.default_runner = 'tapy'
+
+Now you may want to set this up so it is selectable. In which case use an
+environment variable.
+
+  Test::Unit::AutorRunner.default_runner = ENV['rpt'] || 'console'
+
+Then you can do, e.g.
+
+  $ rpt=tapy ruby test/some_test.rb
+
+Now to do something interesting with the TAP-Y/J output, you will probably want
+to install `tapout`:
+
+  $ gem install tapout
+
+Then pipe the output to the `tapout` command, e.g.
+
+  $ rpt=tapy ruby test/some_test.rb | tapout progressbar
+
+
+== Copying
+
+Copyright (c) 2011 Rubyworks
+
+Made available under the terms of the BSD-2-Clause license.
+
+See COPYING.rdoc for copyright and licensing details.
+

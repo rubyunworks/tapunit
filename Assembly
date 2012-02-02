@@ -1,0 +1,31 @@
+---
+gem:
+  active : true
+
+github:
+  gh_pages: web
+
+qed:
+  files: spec
+
+qedoc:
+  files: spec
+  title: MiniTAP Demonstrandum
+  output: QED.rdoc
+
+dnote:
+  title: Developer's Notes
+  labels: ~
+  output: log/notes.html
+  active: true
+
+vclog:
+  output:
+   - log/changes.html
+   - log/history.html
+
+email:
+  mailto:
+    - ruby-talk@ruby-lang.org
+    - rubyworks-mailinglist@googlegroups.com
+

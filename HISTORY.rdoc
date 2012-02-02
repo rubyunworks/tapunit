@@ -1,0 +1,70 @@
+= RELEASE HISTORY
+
+== 0.3.3 | 2012-02-01
+
+This release adds support for the new 'stdout' and 'stderr' fields.
+As tests are run $stdout and $stderr are captured and included in
+the TAP-Y/J stream. This prevents the structured streams from being
+corrupted and provide some nice report options too.
+
+Changes:
+
+* Add support for stdout and stderr capturing.
+
+
+== 0.3.2 | 2011-11-08
+
+This release add support for the new TAP-Y/J 'class' field, and removes
+the class name from the message field. It also fixes a bug that
+arose with certain versions of Ruby's YAML.load_documents implementation.
+
+Changes:
+
+* Work around Ruby's YAML.load_documents issue.
+* Add dependency for MiniTest.
+* Support TAP-Y/J class field.
+* Remove class name from message field.
+
+
+== 0.3.1 | 2011-10-18
+
+This release includes two basic improvements: better backtrace filtering,
+and file fields given relative to current working directory instead of
+absolute paths. In future maybe this can be configurable, if someone makes
+the case that absolute paths are needed.
+
+Changes:
+
+* Improve backtrace filtering.
+* Make file fields relative to working directory.
+
+
+== 0.3.0 | 2011-10-09
+
+Support version 3 of TAP-Y/J spec. This simply entailed renaming
+the `tally` document to `final`.
+
+Changes:
+
+* Support revision 3 of TAP-Y/J.
+
+
+== 0.2.0 | 2011-10-07
+
+This release adjusts how the customer reporter classes
+should be used. It's actually a very minor release under 
+the hood.
+
+Changes:
+
+* Adjust usage documentation.
+
+
+== 0.1.0 | 2011-10-06
+
+This is the first release of MiniTap, a TAP-Y/J reporter
+for the MiniTest test framework.
+
+Changes:
+
+* First Release Day!

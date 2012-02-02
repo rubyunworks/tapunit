@@ -1,0 +1,9 @@
+.reap/digest
+.yardoc
+doc
+log
+man/**/*.1
+man/**/*.html
+pkg
+tmp
+web

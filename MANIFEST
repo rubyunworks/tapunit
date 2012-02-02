@@ -1,0 +1,11 @@
+#!mast .ruby .yardopts bin lib man spec test [A-Z]*.*
+.yardopts
+lib/tapunit/autorun.rb
+lib/tapunit/ignore_callers.rb
+lib/tapunit/tapj.rb
+lib/tapunit/tapy.rb
+lib/tapunit/testrunner.rb
+lib/tapunit.rb
+HISTORY.rdoc
+README.rdoc
+COPYING.rdoc
