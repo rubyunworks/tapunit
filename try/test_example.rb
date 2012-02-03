@@ -1,8 +1,4 @@
-#require 'test/unit'
-
-require 'tapunit/autorun'
-
-
+require 'tapunit/tapy'
 
 class TestExample < Test::Unit::TestCase
   def setup
@@ -11,6 +7,10 @@ class TestExample < Test::Unit::TestCase
 
   def test_add
     assert_equal(7, @number + 2, "Should have added correctly")
+  end
+
+  def test_subtract
+    assert_equal(3, @number - 2, "Should have subtracted correctly")
   end
 
   def teardown
