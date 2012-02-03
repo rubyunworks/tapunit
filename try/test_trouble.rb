@@ -21,6 +21,11 @@ class TestExample < Test::Unit::TestCase
     raise ArgumentError, "it did not go so well"
   end
 
+  def test_output
+    puts "You should see me."
+    assert_equal(1,1)
+  end
+
   def teardown
     @number = nil
   end

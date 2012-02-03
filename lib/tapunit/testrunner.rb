@@ -10,12 +10,10 @@ module TapUnit
   #
   class TestRunner < Test::Unit::UI::TestRunner
 
-    # Creates a new TestRunner for running the passed
-    # suite. If quiet_mode is true, the output while
-    # running is limited to progress dots, errors and
-    # failures, and the final result. io specifies
-    # where runner output should go to; defaults to
-    # STDOUT.
+    # TAP-Y/J Revision
+    REVISION = 4
+
+    #
     def initialize(suite, options={})
       super
 
@@ -30,31 +28,19 @@ module TapUnit
       @counts = Hash.new{ |h,k| h[k] = 0 }
     end
 
-    private
-    #def change_output_level(level)
-    #  old_output_level = @current_output_level
-    #  @current_output_level = level
-    #  yield
-    #  @current_output_level = old_output_level
-    #end
+  private
 
+    #
     def setup_mediator
       super
 
-      suite_name = @suite.to_s
-      suite_name = @suite.name if @suite.kind_of?(Module)
+      #suite_name = @suite.to_s   # file name
+      #suite_name = @suite.name if @suite.kind_of?(Module)
+
+      #reset_output  # TODO: Should we do this up front?
     end
 
-    #def attach_to_mediator
-    #  @mediator.add_listener(TestResult::FAULT,            &method(:add_fault))
-    #  @mediator.add_listener(TestRunnerMediator::STARTED,  &method(:started))
-    #  @mediator.add_listener(TestRunnerMediator::FINISHED, &method(:finished))
-    #  @mediator.add_listener(TestCase::STARTED_OBJECT,     &method(:test_started))
-    #  @mediator.add_listener(TestCase::FINISHED_OBJECT,    &method(:test_finished))
-    #  @mediator.add_listener(TestSuite::STARTED_OBJECT,    &method(:test_suite_started))
-    #  @mediator.add_listener(TestSuite::FINISHED_OBJECT,   &method(:test_suite_finished))
-    #end
-
+    #
     def attach_to_mediator
       @mediator.add_listener(Test::Unit::TestResult::FAULT,                &method(:tapout_fault))
       @mediator.add_listener(Test::Unit::UI::TestRunnerMediator::STARTED,  &method(:tapout_before_suite))
@@ -64,33 +50,6 @@ module TapUnit
       @mediator.add_listener(Test::Unit::TestSuite::STARTED_OBJECT,        &method(:tapout_before_case))
       @mediator.add_listener(Test::Unit::TestSuite::FINISHED_OBJECT,       &method(:tapout_after_case))
     end
-
-
-    # TAP-Y/J Revision
-    REVISION = 4
-
-=begin
-    def test_suite_started(suite)
-      #if @top_level
-      #  @top_level = false
-      #  return
-      #end
-
-      output_single(indent, nil, VERBOSE)
-      if suite.test_case.nil?
-        _color = color("suite")
-      else
-        _color = color("case")
-      end
-      output_single(suite.name, _color, VERBOSE)
-      output(": ", nil, VERBOSE)
-      @level += 1
-    end
-
-    def test_suite_finished(suite)
-      @level -= 1
-    end
-=end
 
     #
     # Before everything else.
@@ -152,7 +111,7 @@ module TapUnit
     end
 
     #
-    #
+    # After each case, decrement the case level.
     #
     def tapout_after_case(testcase)
       @level -= 1
@@ -161,6 +120,8 @@ module TapUnit
     #
     def tapout_before_test(test)
       @test_start = Time.now
+      # set up stdout and stderr to be captured
+      reset_output
     end
 
     #
@@ -221,9 +182,7 @@ module TapUnit
         'time' => Time.now - @suite_start
       }
 
-      #stdout, stderr = test_runner.stdout, test_runner.stderr
-      #doc['stdout'] = stdout unless stdout.empty?
-      #doc['stderr'] = stderr unless stderr.empty?
+      doc.update(captured_output)
 
       return doc
     end
@@ -240,7 +199,7 @@ module TapUnit
         'type'        => 'test',
         #'subtype'     => '',
         'status'      => 'todo',
-        'label'       => fault.test_name,
+        'label'       => fault.test_name.sub(/\(.+?\)\z/, ''),
         #'setup' => "foo instance",
         #'expected' => 2,
         #'returned' => 1,
@@ -263,6 +222,9 @@ module TapUnit
         },
         'time' => Time.now - @suite_start
       }
+
+      doc.update(captured_output)
+
       return doc
     end
 
@@ -278,7 +240,7 @@ module TapUnit
         'type'        => 'test',
         #'subtype'     => '',
         'status'      => 'skip',
-        'label'       => fault.test_name,
+        'label'       => fault.test_name.sub(/\(.+?\)\z/, ''),
         #'setup' => "foo instance",
         #'expected' => 2,
         #'returned' => 1,
@@ -301,6 +263,9 @@ module TapUnit
         },
         'time' => Time.now - @suite_start
       }
+
+      doc.update(captured_output)
+
       return doc
     end
 
@@ -316,7 +281,7 @@ module TapUnit
         'type'        => 'test',
         #'subtype'     => '',
         'status'      => 'fail',
-        'label'       => fault.test_name,
+        'label'       => fault.test_name.sub(/\(.+?\)\z/, ''),
         #'setup' => "foo instance",
         'expected'    => fault.inspected_expected,
         'returned'    => fault.inspected_actual,
@@ -343,10 +308,7 @@ module TapUnit
         'time' => Time.now - @suite_start
       }
 
-      # TODO
-      #stdout, stderr = test_runner.stdout, test_runner.stderr
-      #doc['stdout'] = stdout unless stdout.empty?
-      #doc['stderr'] = stderr unless stderr.empty?
+      doc.update(captured_output)
 
       return doc
     end
@@ -363,7 +325,7 @@ module TapUnit
         'type'        => 'test',
         #'subtype'     => '',
         'status'      => 'error',
-        'label'       => fault.test_name,
+        'label'       => fault.test_name.sub(/\(.+?\)\z/, ''),
         #'setup' => "foo instance",
         #'expected'    => fault.inspected_expected,
         #'returned'    => fault.inspected_actual,
@@ -390,75 +352,10 @@ module TapUnit
         'time' => Time.now - @suite_start
       }
 
-      # TODO
-      #stdout, stderr = test_runner.stdout, test_runner.stderr
-      #doc['stdout'] = stdout unless stdout.empty?
-      #doc['stderr'] = stderr unless stderr.empty?
+      doc.update(captured_output)
 
       return doc
     end
-
-
-=begin
-    #
-    def output_fault_message(fault)
-      if fault.expected.respond_to?(:encoding) and
-          fault.actual.respond_to?(:encoding) and
-          fault.expected.encoding != fault.actual.encoding
-        need_encoding = true
-      else
-        need_encoding = false
-      end
-      output(fault.user_message) if fault.user_message
-      output_single("<")
-      output_single(fault.inspected_expected, color("pass"))
-      output_single(">")
-      if need_encoding
-        output_single("(")
-        output_single(fault.expected.encoding.name, color("pass"))
-        output_single(")")
-      end
-      output(" expected but was")
-      output_single("<")
-      output_single(fault.inspected_actual, color("failure"))
-      output_single(">")
-      if need_encoding
-        output_single("(")
-        output_single(fault.actual.encoding.name, color("failure"))
-        output_single(")")
-      end
-      output("")
-
-      from, to = prepare_for_diff(fault.expected, fault.actual)
-      if from and to
-        from_lines = from.split(/\r?\n/)
-        to_lines = to.split(/\r?\n/)
-        if need_encoding
-          from_lines << ""
-          to_lines << ""
-          from_lines << "Encoding: #{fault.expected.encoding.name}"
-          to_lines << "Encoding: #{fault.actual.encoding.name}"
-        end
-        differ = ColorizedReadableDiffer.new(from_lines, to_lines, self)
-        if differ.need_diff?
-          output("")
-          output("diff:")
-          differ.diff
-        end
-      end
-    end
-=end
-
-=begin
-    def test_finished(test)
-      name = test.name.sub(/\(.+?\)\z/, '')
-
-      #unless @already_outputted
-      #  output_progress(".", color("pass"))
-      #end
-      #already_outputted = false
-    end
-=end
 
     # Clean the backtrace of any reference to test framework itself.
     def filter_backtrace(backtrace)
@@ -539,6 +436,84 @@ module TapUnit
       @output.write(string)
       @output.flush      
     end
+
+    #
+    def reset_output
+      @_oldout = $stdout
+      @_olderr = $stderr
+
+      @_newout = StringIO.new
+      @_newerr = StringIO.new
+
+      $stdout = @_newout
+      $stderr = @_newerr
+    end
+
+    #
+    def captured_output
+      stdout = @_newout.string.chomp("\n")
+      stderr = @_newerr.string.chomp("\n")
+
+      doc = {}
+      doc['stdout'] = stdout unless stdout.empty?
+      doc['stderr'] = stderr unless stderr.empty?
+
+      $stdout = @_oldout
+      $stderr = @_olderr
+
+      return doc
+    end
+
+=begin
+    # TEMPORARILY LEAVING THIS FOR REFERENCE. What's this about encoding?
+
+    def output_fault_message(fault)
+      if fault.expected.respond_to?(:encoding) and
+          fault.actual.respond_to?(:encoding) and
+          fault.expected.encoding != fault.actual.encoding
+        need_encoding = true
+      else
+        need_encoding = false
+      end
+      output(fault.user_message) if fault.user_message
+      output_single("<")
+      output_single(fault.inspected_expected, color("pass"))
+      output_single(">")
+      if need_encoding
+        output_single("(")
+        output_single(fault.expected.encoding.name, color("pass"))
+        output_single(")")
+      end
+      output(" expected but was")
+      output_single("<")
+      output_single(fault.inspected_actual, color("failure"))
+      output_single(">")
+      if need_encoding
+        output_single("(")
+        output_single(fault.actual.encoding.name, color("failure"))
+        output_single(")")
+      end
+      output("")
+
+      from, to = prepare_for_diff(fault.expected, fault.actual)
+      if from and to
+        from_lines = from.split(/\r?\n/)
+        to_lines = to.split(/\r?\n/)
+        if need_encoding
+          from_lines << ""
+          to_lines << ""
+          from_lines << "Encoding: #{fault.expected.encoding.name}"
+          to_lines << "Encoding: #{fault.actual.encoding.name}"
+        end
+        differ = ColorizedReadableDiffer.new(from_lines, to_lines, self)
+        if differ.need_diff?
+          output("")
+          output("diff:")
+          differ.diff
+        end
+      end
+    end
+=end
 
   end
 
