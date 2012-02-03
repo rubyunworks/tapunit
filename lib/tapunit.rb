@@ -5,8 +5,20 @@ end
 
 require 'test/unit'
 
-require 'tapunit/tapy'
-require 'tapunit/tapj'
+# prevent autorun
+Test::Unit.run = true
 
-#Test::Unit.run = false
+# register the report formats
+module Test #:nodoc:
+  module Unit
+    AutoRunner.register_runner(:tapy) do |auto_runner|
+      require 'tapunit/testrunner'
+      TapUnit::TapY
+    end
+    AutoRunner.register_runner(:tapj) do |auto_runner|
+      require 'tapunit/testrunner'
+      TapUnit::TapJ
+    end
+  end
+end
 
